@@ -8,15 +8,24 @@ import {
   Paper,
   Stack,
   Typography,
-  Checkbox,
+  Snackbar,
+  Alert,
   Divider,
+  IconButton,
 } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
+import { motion, AnimatePresence } from "framer-motion";
 
-type Todo = { id: string; title: string; selected: boolean };
+type Todo = { id: string; title: string };
 
 export default function ToDoContainer() {
   const [input, setInput] = useState("");
   const [todos, setTodos] = useState<Todo[]>([]);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "info" | "warning" | "error" }>({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   function handleChange(e: ChangeEvent<HTMLInputElement>) {
     setInput(e.target.value);
@@ -26,36 +35,32 @@ export default function ToDoContainer() {
     e.preventDefault();
     const title = input.trim();
     if (!title) return;
-    setTodos((prev) => [...prev, { id: crypto.randomUUID(), title, selected: false }]);
+    setTodos((prev) => [...prev, { id: crypto.randomUUID(), title }]);
     setInput("");
+    setSnackbar({ open: true, message: "Task added", severity: "success" });
   }
 
-  function toggleSelect(id: string) {
-    setTodos((prev) =>
-      prev.map((todo) =>
-        todo.id === id ? { ...todo, selected: !todo.selected } : todo
-      )
-    );
-  }
-
-  function handleDeleteSelected() {
-    setTodos((prev) => prev.filter((t) => !t.selected));
+  function handleDeleteOne(id: string) {
+    setTodos((prev) => prev.filter((t) => t.id !== id));
+    setSnackbar({ open: true, message: "Task deleted", severity: "info" });
   }
 
   function handleClearAll() {
     setTodos([]);
+    setSnackbar({ open: true, message: "All tasks cleared", severity: "warning" });
   }
 
   return (
-    <Box sx={{ maxWidth: 560, p: 2 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>
-        To-Do
+    <Box sx={{ maxWidth: 640, mx: "auto", p: 3 }}>
+      <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
+        Next Taskboard
       </Typography>
 
+      {/* Form */}
       <Box
         component="form"
         onSubmit={handleSubmit}
-        sx={{ display: "flex", gap: 1, alignItems: "center" }}
+        sx={{ display: "flex", gap: 1 }}
       >
         <TextField
           label="New task"
@@ -66,67 +71,93 @@ export default function ToDoContainer() {
         <Button type="submit" variant="contained">
           Add
         </Button>
+        <Button
+          variant="outlined"
+          color="error"
+          onClick={handleClearAll}
+          disabled={todos.length === 0}
+        >
+          Clear All
+        </Button>
       </Box>
+
+      {/* Counter */}
+      <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1.5 }}>
+        {todos.length === 0
+          ? "No tasks yet"
+          : `${todos.length} task${todos.length > 1 ? "s" : ""} total`}
+      </Typography>
 
       <Divider sx={{ my: 2 }} />
 
-      <Stack spacing={1.25}>
-        {todos.map((todo) => (
-          <Paper
-            key={todo.id}
-            sx={{
-              p: 1.25,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              backgroundColor: todo.selected ? "rgba(255,0,0,0.05)" : "inherit",
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Checkbox
-                checked={todo.selected}
-                onChange={() => toggleSelect(todo.id)}
-              />
-              <Typography
-                sx={{
-                  textDecoration: todo.selected ? "line-through" : "none",
-                  color: todo.selected ? "text.secondary" : "text.primary",
-                }}
-              >
-                {todo.title}
-              </Typography>
-            </Box>
-          </Paper>
-        ))}
-
-        {todos.length === 0 && (
-          <Typography variant="body2" color="text.secondary">
-            Nessuna task. Aggiungine una per iniziare.
+      {/* Empty state (poetico/illustrato) */}
+      {todos.length === 0 && (
+        <Box
+          sx={{
+            textAlign: "center",
+            mt: 6,
+            color: "text.secondary",
+            opacity: 0.9,
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 500 }}>
+            Your mind is clear.
           </Typography>
-        )}
-      </Stack>
-
-      {todos.length > 0 && (
-        <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
-          <Button
-            variant="outlined"
-            color="error"
-            onClick={handleDeleteSelected}
-            disabled={!todos.some((t) => t.selected)}
-            // startIcon={<DeleteIcon />} --- IGNORE ---
-          >
-            Delete selected
-          </Button>
-          <Button
-            variant="outlined"
-            color="warning"
-            onClick={handleClearAll}
-            disabled={todos.length === 0}
-          >
-            Clear all
-          </Button>
+          <Typography variant="body2">Add your first thought 🌱</Typography>
         </Box>
       )}
+
+      {/* Lista con animazioni */}
+      <Stack spacing={1.25}>
+        <AnimatePresence>
+          {todos.map((todo) => (
+            <motion.div
+              key={todo.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.18 }}
+            >
+              <Paper
+                elevation={1}
+                sx={{
+                  p: 1.25,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                  "&:hover": { transform: "translateY(-2px)" },
+                }}
+              >
+                <Typography>{todo.title}</Typography>
+                <IconButton
+                  aria-label={`Delete ${todo.title}`}
+                  onClick={() => handleDeleteOne(todo.id)}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </Paper>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </Stack>
+
+      {/* Snackbar feedback */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={1800}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
