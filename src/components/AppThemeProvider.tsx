@@ -24,6 +24,7 @@ export default function AppThemeProvider({ children }: PropsWithChildren) {
             default: mode === "dark" ? "#0d0d0d" : "#fafafa",
             paper: mode === "dark" ? "#141414" : "#ffffff",
           },
+          // Add: nero->bianco
           primary: {
             main: mode === "dark" ? "#ffffff" : "#000000",
             contrastText: mode === "dark" ? "#000000" : "#ffffff",
@@ -42,8 +43,8 @@ export default function AppThemeProvider({ children }: PropsWithChildren) {
                 borderRadius: 10,
                 fontWeight: 500,
                 borderWidth: 1,
-                "&:hover": { opacity: 0.9, transform: "translateY(-1px)" },
                 transition: "all 0.2s ease",
+                "&:hover": { opacity: 0.9, transform: "translateY(-1px)" },
               },
             },
           },
