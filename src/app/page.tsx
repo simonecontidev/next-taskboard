@@ -1,15 +1,10 @@
-import Image from "next/image";
-import ToDoContainer from "../../components/ToDoContainer";
 import { Box } from "@mui/material";
-import { Typography } from "@mui/material";
+import ToDoContainer from "../components/ToDoContainer";
 
-
-const Home = () => {
+export default function Home() {
   return (
-    <Box>
-    <ToDoContainer/>
+    <Box sx={{ p: 3 }}>
+      <ToDoContainer />
     </Box>
   );
 }
-
-export default Home;
