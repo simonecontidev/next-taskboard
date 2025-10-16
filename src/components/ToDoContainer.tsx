@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, ChangeEvent, FormEvent } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, ChangeEvent, FormEvent } from "react";
 import {
   Box,
   TextField,
@@ -21,6 +21,11 @@ import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 import { motion, AnimatePresence } from "framer-motion";
 
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
+
 type Filter = "all" | "active" | "completed";
 
 type Todo = {
@@ -40,9 +45,12 @@ export default function ToDoContainer() {
     severity: "success" | "info" | "warning" | "error";
   }>({ open: false, message: "", severity: "success" });
 
-  // editing inline
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+
+  // refs per GSAP
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const cardsRef = useRef<Record<string, HTMLDivElement | null>>({}); // mappa id -> DOM el
 
   /* -----------------------------
      1) Persistenza localStorage
@@ -55,6 +63,67 @@ export default function ToDoContainer() {
   useEffect(() => {
     localStorage.setItem("next-taskboard/todos", JSON.stringify(todos));
   }, [todos]);
+
+  /* -----------------------------
+     GSAP: reveal iniziale + on-scroll
+  ------------------------------*/
+  useLayoutEffect(() => {
+    if (!rootRef.current) return;
+    const ctx = gsap.context(() => {
+      // titolo
+      gsap.from(".jt-title", {
+        y: 24,
+        opacity: 0,
+        duration: 0.6,
+        ease: "power2.out",
+      });
+
+      // form
+      gsap.from(".jt-form > *", {
+        y: 12,
+        opacity: 0,
+        stagger: 0.06,
+        duration: 0.4,
+        ease: "power2.out",
+        delay: 0.1,
+      });
+
+      // card on-scroll
+      gsap.utils.toArray<HTMLElement>(".jt-card").forEach((el) => {
+        gsap.from(el, {
+          opacity: 0,
+          y: 16,
+          duration: 0.3,
+          ease: "power2.out",
+          scrollTrigger: {
+            trigger: el,
+            start: "top 85%",
+          },
+        });
+      });
+    }, rootRef);
+
+    return () => ctx.revert();
+  }, []);
+
+  // GSAP: evidenzia ultima card aggiunta
+  useEffect(() => {
+    if (todos.length === 0) return;
+    const last = todos[todos.length - 1];
+    const el = cardsRef.current[last.id];
+    if (!el) return;
+    gsap.fromTo(
+      el,
+      { boxShadow: "0 0 0px rgba(0,0,0,0)", scale: 0.98 },
+      {
+        boxShadow: "0 6px 24px rgba(0,0,0,0.15)",
+        scale: 1,
+        duration: 0.35,
+        ease: "power2.out",
+        clearProps: "boxShadow,transform",
+      }
+    );
+  }, [todos.length]);
 
   /* -----------------------------
      Handlers base
@@ -86,7 +155,7 @@ export default function ToDoContainer() {
   }
 
   /* -----------------------------
-     2) Toggle completed
+     Toggle completed / Filtri
   ------------------------------*/
   function toggleCompleted(id: string) {
     setTodos((prev) =>
@@ -94,9 +163,6 @@ export default function ToDoContainer() {
     );
   }
 
-  /* -----------------------------
-     3) Filtri + Clear completed
-  ------------------------------*/
   const filtered = todos.filter((t) => {
     if (filter === "active") return !t.completed;
     if (filter === "completed") return t.completed;
@@ -109,7 +175,7 @@ export default function ToDoContainer() {
   }
 
   /* -----------------------------
-     4) Edit inline (UX)
+     Edit inline
   ------------------------------*/
   function startEdit(id: string, currentTitle: string) {
     setEditingId(id);
@@ -130,16 +196,31 @@ export default function ToDoContainer() {
     setEditValue("");
   }
 
+  /* -----------------------------
+     Micro-animazioni bottoni (press)
+  ------------------------------*/
+  function pressIn(e: React.MouseEvent<HTMLButtonElement>) {
+    gsap.to(e.currentTarget, { y: 1, duration: 0.1, ease: "power1.out" });
+  }
+  function pressOut(e: React.MouseEvent<HTMLButtonElement>) {
+    gsap.to(e.currentTarget, { y: 0, duration: 0.15, ease: "power2.out" });
+  }
+
   const remaining = todos.filter((t) => !t.completed).length;
 
   return (
-    <Box sx={{ maxWidth: 800, mx: "auto", p: 3, minHeight: "100vh" }}>
-      <Typography variant="h2" sx={{ mb: 4, fontWeight: 600, textAlign: "center", mt: 2 }}>
+    <Box ref={rootRef} sx={{ maxWidth: 800, mx: "auto", p: 3, minHeight: "100vh" }}>
+      <Typography className="jt-title" variant="h2" sx={{ mb: 4, fontWeight: 600, textAlign: "center", mt: 2 }}>
         Next Taskboard
       </Typography>
 
       {/* Form */}
-      <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+      <Box
+        component="form"
+        onSubmit={handleSubmit}
+        className="jt-form"
+        sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}
+      >
         <TextField
           label="New task"
           value={input}
@@ -147,7 +228,13 @@ export default function ToDoContainer() {
           fullWidth
           autoComplete="off"
         />
-        <Button type="submit" variant="contained">
+        <Button
+          type="submit"
+          variant="contained"
+          onMouseDown={pressIn}
+          onMouseUp={pressOut}
+          onMouseLeave={pressOut}
+        >
           Add
         </Button>
         <Button
@@ -155,6 +242,9 @@ export default function ToDoContainer() {
           color="error"
           onClick={handleClearAll}
           disabled={todos.length === 0}
+          onMouseDown={pressIn}
+          onMouseUp={pressOut}
+          onMouseLeave={pressOut}
         >
           Clear All
         </Button>
@@ -182,18 +272,27 @@ export default function ToDoContainer() {
             <Button
               onClick={() => setFilter("all")}
               variant={filter === "all" ? "contained" : "outlined"}
+              onMouseDown={pressIn}
+              onMouseUp={pressOut}
+              onMouseLeave={pressOut}
             >
               All
             </Button>
             <Button
               onClick={() => setFilter("active")}
               variant={filter === "active" ? "contained" : "outlined"}
+              onMouseDown={pressIn}
+              onMouseUp={pressOut}
+              onMouseLeave={pressOut}
             >
               Active
             </Button>
             <Button
               onClick={() => setFilter("completed")}
               variant={filter === "completed" ? "contained" : "outlined"}
+              onMouseDown={pressIn}
+              onMouseUp={pressOut}
+              onMouseLeave={pressOut}
             >
               Completed
             </Button>
@@ -203,6 +302,9 @@ export default function ToDoContainer() {
             size="small"
             onClick={clearCompleted}
             disabled={!todos.some((t) => t.completed)}
+            onMouseDown={pressIn}
+            onMouseUp={pressOut}
+            onMouseLeave={pressOut}
           >
             Clear completed
           </Button>
@@ -236,6 +338,8 @@ export default function ToDoContainer() {
               >
                 <Paper
                   elevation={1}
+                  className="jt-card"
+                  ref={(el) => (cardsRef.current[todo.id] = el)}
                   sx={{
                     p: 1.25,
                     display: "flex",
@@ -254,7 +358,14 @@ export default function ToDoContainer() {
                     />
 
                     {isEditing ? (
-                      <Box component="form" onSubmit={(e) => { e.preventDefault(); confirmEdit(todo.id); }} sx={{ flex: 1, display: "flex", gap: 1 }}>
+                      <Box
+                        component="form"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          confirmEdit(todo.id);
+                        }}
+                        sx={{ flex: 1, display: "flex", gap: 1 }}
+                      >
                         <TextField
                           autoFocus
                           size="small"
