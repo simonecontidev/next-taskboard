@@ -51,7 +51,7 @@ export default function ToDoContainer() {
   }
 
   return (
-    <Box sx={{ maxWidth: 640, mx: "auto", p: 3 }}>
+    <Box sx={{ maxWidth: 640, mx: "auto", p: 3, height: "100vh" }}>
       <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
         Next Taskboard
       </Typography>
