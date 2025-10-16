@@ -1,0 +1,7 @@
+html, body {
+  background: #fff;
+}
+code, pre {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
