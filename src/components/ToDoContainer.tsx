@@ -14,7 +14,7 @@ import {
   IconButton,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, color } from "framer-motion";
 
 type Todo = { id: string; title: string };
 
@@ -51,8 +51,8 @@ export default function ToDoContainer() {
   }
 
   return (
-    <Box sx={{ maxWidth: 640, mx: "auto", p: 3, height: "100vh" }}>
-      <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
+    <Box sx={{ maxWidth: 800, mx: "auto", p: 3, height: "100vh" }}>
+      <Typography variant="h2" sx={{ mb: 20, fontWeight: 600, textAlign: "center", mt: 4 }}>
         Next Taskboard
       </Typography>
 
