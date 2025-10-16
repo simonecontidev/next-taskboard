@@ -12,7 +12,6 @@ import {
 import { LightMode, DarkMode } from "@mui/icons-material";
 
 export default function AppThemeProvider({ children }: PropsWithChildren) {
-  // parte dal tema di sistema
   const prefersDark = useMediaQuery("(prefers-color-scheme: dark)");
   const [mode, setMode] = useState<"light" | "dark">(prefersDark ? "dark" : "light");
 
@@ -21,10 +20,34 @@ export default function AppThemeProvider({ children }: PropsWithChildren) {
       createTheme({
         palette: {
           mode,
-          primary: { main: "#1976d2" },
-          background: { default: mode === "dark" ? "#0f1115" : "#f7f7f7" },
+          background: {
+            default: mode === "dark" ? "#0d0d0d" : "#fafafa",
+            paper: mode === "dark" ? "#141414" : "#ffffff",
+          },
+          primary: {
+            main: mode === "dark" ? "#ffffff" : "#000000",
+            contrastText: mode === "dark" ? "#000000" : "#ffffff",
+          },
+          text: {
+            primary: mode === "dark" ? "#ffffff" : "#000000",
+            secondary: mode === "dark" ? "#b3b3b3" : "#555555",
+          },
         },
-        shape: { borderRadius: 12 },
+        shape: { borderRadius: 10 },
+        components: {
+          MuiButton: {
+            styleOverrides: {
+              root: {
+                textTransform: "none",
+                borderRadius: 10,
+                fontWeight: 500,
+                borderWidth: 1,
+                "&:hover": { opacity: 0.9, transform: "translateY(-1px)" },
+                transition: "all 0.2s ease",
+              },
+            },
+          },
+        },
       }),
     [mode]
   );
@@ -32,11 +55,11 @@ export default function AppThemeProvider({ children }: PropsWithChildren) {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      {/* Toggle in alto a destra */}
       <Box sx={{ position: "fixed", top: 12, right: 12, zIndex: 9999 }}>
         <IconButton
           onClick={() => setMode((m) => (m === "light" ? "dark" : "light"))}
           aria-label="Toggle theme"
+          color="inherit"
         >
           {mode === "light" ? <DarkMode /> : <LightMode />}
         </IconButton>
