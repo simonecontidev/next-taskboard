@@ -59,44 +59,48 @@ pnpm dev
 
 Then open http://localhost:3000￼ ✨
 
+```
 
-🧩 Folder Structure
+---
+
+## 🧩 Folder Structure
+
 src/
 ├─ app/
-│  ├─ layout.tsx           # MUI SSR-safe provider
-│  └─ page.tsx             # Home + Theme toggle
+│ ├─ layout.tsx # MUI SSR-safe provider
+│ └─ page.tsx # Home + Theme toggle
 ├─ components/
-│  ├─ ToDoContainer.tsx    # Main board
-│  ├─ SortableTodoItem.tsx # DnD-enabled task card
-│  ├─ TaskDetailsDialog.tsx
-│  └─ ColorModeProvider.tsx
+│ ├─ ToDoContainer.tsx # Main board
+│ ├─ SortableTodoItem.tsx # DnD-enabled task card
+│ ├─ TaskDetailsDialog.tsx
+│ └─ ColorModeProvider.tsx
 ├─ lib/
-│  └─ persist.ts           # localStorage helpers
-├─ theme.ts                # Dynamic palette
-└─ types.ts                # Shared types
+│ └─ persist.ts # localStorage helpers
+├─ theme.ts # Dynamic palette
+└─ types.ts # Shared types
 
-🧠 What This Demonstrates
-	•	Responsive, theme-aware UI with zero hydration mismatch
-	•	Complex list reordering logic with persisted order
-	•	Custom dark/light system integrated with MUI + App Router cache
-	•	Performance-friendly GSAP scroll animations
-	•	Advanced React patterns for state lifting, filtering, and optimistic UI
+---
 
-⸻
+## What This Demonstrates
 
-📈 Next Iterations
-	•	Undo action for delete/reorder
-	•	Subtasks inline editor
-	•	Cloud sync (Supabase or Firebase)
-	•	Shareable public board links
-	•	Test suite with Playwright + Jest
+    •	Responsive, theme-aware UI with zero hydration mismatch
+    •	Complex list reordering logic with persisted order
+    •	Custom dark/light system integrated with MUI + App Router cache
+    •	Performance-friendly GSAP scroll animations
+    •	Advanced React patterns for state lifting, filtering, and optimistic UI
 
-📄 License
+---
+
+## Next Iterations
+
+    •	Undo action for delete/reorder
+    •	Subtasks inline editor
+    •	Cloud sync (Supabase or Firebase)
+    •	Shareable public board links
+    •	Test suite with Playwright + Jest
+
+---
+
+## License
 
 MIT — Feel free to fork, study, and build upon this.
-
-⸻
-
-“A codebase should feel alive — breathing through motion, logic, and clarity.”
-
-```
