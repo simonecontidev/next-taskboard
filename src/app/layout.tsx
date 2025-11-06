@@ -2,6 +2,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
+import { CssBaseline, ThemeProvider } from "@mui/material";
+import theme from "../theme";
 
 const geistSans = Geist({ subsets: ["latin"] });
 const geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -15,7 +18,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${geistSans.className} antialiased`}>
-        {children}
+<AppRouterCacheProvider options={{ enableCssLayer: true }}>
+            <CssBaseline />
+            {children}
+        </AppRouterCacheProvider>
       </body>
     </html>
   );
