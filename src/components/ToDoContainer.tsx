@@ -21,6 +21,7 @@ import { SortableTodoItem } from "@/components/SortableTodoItem";
 import TaskDetailsDialog from "@/components/TaskDetailsDialog";
 import type { Todo, Priority } from "@/types";
 import { loadTodos, saveTodos } from "@/lib/persist";
+import { Fullscreen } from "@mui/icons-material";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -190,15 +191,18 @@ export default function ToDoContainer() {
     setTodos(moved);
   }
 
+  // 🔧 pill attiva theme-aware (niente bianco/nero fissi)
   const activeFilterSx = {
-    bgcolor: theme.palette.common.white + " !important",
-    color: theme.palette.common.black + " !important",
-    borderColor: theme.palette.divider + " !important",
-    "&:hover": { bgcolor: theme.palette.grey[100] + " !important" },
+    bgcolor: theme.palette.background.paper,
+    color: theme.palette.text.primary,
+    borderColor: theme.palette.divider,
+    "&:hover": { bgcolor: theme.palette.action.hover },
   } as const;
 
   return (
-    <Box ref={rootRef} sx={{ maxWidth: 980, mx: "auto", p: 3, minHeight: "100vh" }}>
+    <Box ref={rootRef} sx={{  mx: "auto", p: 3, minHeight: "100vh", bgcolor: (t) => t.palette.background.default,
+    color: (t) => t.palette.text.primary  }}>
+      <Box sx={{ width: 1000, mx: "auto"}}>
       <Typography className="jt-title" variant="h2" sx={{ mb: 4, fontWeight: 600, textAlign: "center", mt: 2 }}>
         Next Taskboard
       </Typography>
@@ -206,8 +210,12 @@ export default function ToDoContainer() {
       {/* Form */}
       <Box component="form" onSubmit={handleSubmit} className="jt-form" sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
         <TextField label="New task" value={input} onChange={(e: ChangeEvent<HTMLInputElement>) => setInput(e.target.value)} fullWidth autoComplete="off" />
-        <Button type="submit" variant="contained" color="primary" disabled={!input.trim()}>Add</Button>
-        <Button variant="outlined" color="error" onClick={() => setTodos([])} disabled={todos.length === 0}>Clear All</Button>
+        <Button type="submit" variant="contained" color="primary" disabled={!input.trim()}>
+          Add
+        </Button>
+        <Button variant="outlined" color="error" onClick={() => setTodos([])} disabled={todos.length === 0}>
+          Clear All
+        </Button>
       </Box>
 
       {/* Counter + Filtri base */}
@@ -319,6 +327,7 @@ export default function ToDoContainer() {
         onSave={(next) => onSaveTask(next)}
         knownLabels={knownLabels}
       />
+      </Box>
     </Box>
   );
 }
