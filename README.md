@@ -1,36 +1,102 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🧭 Next Taskboard — A Modern Productivity Playground
 
-## Getting Started
+A sleek, animated **Next.js 15** task board built with **TypeScript**, **MUI v6**, **Framer Motion**, **GSAP**, and **DnD-Kit**.  
+Designed as a real-world demo to showcase advanced React patterns, UI/UX micro-interactions, and clean architectural thinking.
 
-First, run the development server:
+> 🧑‍💻 Built by [Simone Conti](https://simoneconti.work) — creative developer blending code and design.
+
+---
+
+## ✨ Features
+
+| Category            | Highlights                                                   |
+| ------------------- | ------------------------------------------------------------ |
+| 🧠 Core             | Smart task creation, editing, and persistence (LocalStorage) |
+| 📦 Data Model       | `Todo` type with Priority, Labels, Due Dates, and Subtasks   |
+| ⚡ Drag & Drop      | Reorder tasks vertically with `@dnd-kit/core`                |
+| 🎨 Design System    | Material-UI (MUI) v6 + custom dark/light mode via context    |
+| 🪄 Motion           | GSAP scroll reveals + Framer Motion transitions              |
+| 🎚️ Filters          | Quick + advanced filters (priority, label, due status)       |
+| 💬 Feedback         | Snackbar confirmations with undo potential                   |
+| 🧩 Architecture     | Clean separation of components, hooks, and lib helpers       |
+| 🧭 State Management | Pure React state + persistent sync through `/lib/persist.ts` |
+
+---
+
+## 🛠️ Tech Stack
+
+- **Next.js 15** (App Router + TypeScript)
+- **MUI v6** for theme and layout
+- **GSAP + ScrollTrigger** for animation sequences
+- **Framer Motion** for list transitions
+- **DnD Kit** for drag & drop sorting
+- **LocalStorage** for data persistence
+- **Vercel** ready deployment (zero-config)
+
+---
+
+## 🌓 Dark / Light Mode
+
+Full theme toggling with context persistence.  
+Each component adapts automatically using MUI’s `palette.background` and `text` colors.
+
+_(Add GIF preview here if available)_
+
+---
+
+## 🚀 Getting Started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+# 1. Clone
+git clone https://github.com/simonecontiart/next-taskboard.git
+cd next-taskboard
+
+# 2. Install dependencies
+pnpm install
+
+# 3. Run dev server
 pnpm dev
-# or
-bun dev
+
+Then open http://localhost:3000￼ ✨
+
+
+🧩 Folder Structure
+src/
+├─ app/
+│  ├─ layout.tsx           # MUI SSR-safe provider
+│  └─ page.tsx             # Home + Theme toggle
+├─ components/
+│  ├─ ToDoContainer.tsx    # Main board
+│  ├─ SortableTodoItem.tsx # DnD-enabled task card
+│  ├─ TaskDetailsDialog.tsx
+│  └─ ColorModeProvider.tsx
+├─ lib/
+│  └─ persist.ts           # localStorage helpers
+├─ theme.ts                # Dynamic palette
+└─ types.ts                # Shared types
+
+🧠 What This Demonstrates
+	•	Responsive, theme-aware UI with zero hydration mismatch
+	•	Complex list reordering logic with persisted order
+	•	Custom dark/light system integrated with MUI + App Router cache
+	•	Performance-friendly GSAP scroll animations
+	•	Advanced React patterns for state lifting, filtering, and optimistic UI
+
+⸻
+
+📈 Next Iterations
+	•	Undo action for delete/reorder
+	•	Subtasks inline editor
+	•	Cloud sync (Supabase or Firebase)
+	•	Shareable public board links
+	•	Test suite with Playwright + Jest
+
+📄 License
+
+MIT — Feel free to fork, study, and build upon this.
+
+⸻
+
+“A codebase should feel alive — breathing through motion, logic, and clarity.”
+
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
