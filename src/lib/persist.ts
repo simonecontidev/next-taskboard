@@ -1,49 +1,54 @@
-const KEY = "next-taskboard/tasks";
-const VERSION = 2;
+import type { Todo } from "@/types";
 
-type Stored = { version: number; tasks: any[] };
+const STORAGE_KEY = "next-taskboard/todos";
+const STORAGE_VERSION = 3;
 
-export function loadTasks(): Task[] {
+type StoredV2 = { version: 2; todos: any[] };
+type StoredV3 = { version: 3; todos: any[] };
+type AnyStored = StoredV2 | StoredV3 | any[];
+
+export function loadTodos(): Todo[] {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
-    const data: Stored = JSON.parse(raw);
+    const parsed: AnyStored = JSON.parse(raw);
 
-    // migrazione da versioni precedenti
-    const migrated = migrate(data);
-    return migrated.tasks as Task[];
+    // Vecchio formato: array semplice
+    if (Array.isArray(parsed)) {
+      const withOrder = parsed.map((t: any, i: number) => ({ order: i, ...t }));
+      return normalizeToV3(withOrder);
+    }
+
+    if (parsed.version === 2) {
+      return normalizeToV3(parsed.todos);
+    }
+
+    if (parsed.version === 3) {
+      return normalizeToV3(parsed.todos);
+    }
+
+    return [];
   } catch {
     return [];
   }
 }
 
-export function saveTasks(tasks: Task[]) {
-  const payload: Stored = { version: VERSION, tasks };
-  localStorage.setItem(KEY, JSON.stringify(payload));
+export function saveTodos(todos: Todo[]) {
+  const payload: StoredV3 = { version: STORAGE_VERSION, todos };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
 
-function migrate(data: any): Stored {
-  if (!data || !Array.isArray(data.tasks)) {
-    return { version: VERSION, tasks: [] };
-  }
-  // v1 -> v2: aggiunge order se mancante, normalizza
-  if (!data.version || data.version < 2) {
-    const ordered = (data.tasks as any[]).map((t, i) => ({
-      order: typeof t.order === "number" ? t.order : i,
-      ...t,
-    }));
-    // ricalcola order 0..n coerente
-    const normalized = ordered
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-      .map((t, i) => ({ ...t, order: i }));
-    return { version: VERSION, tasks: normalized };
-  }
-  // già v2
-  const normalized = (data.tasks as any[])
+function normalizeToV3(list: any[]): Todo[] {
+  const ordered = (list || [])
+    .map((t, i) => ({ order: Number.isFinite(t.order) ? t.order : i, ...t }))
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-    .map((t, i) => ({ ...t, order: i }));
-  return { version: data.version, tasks: normalized };
+    .map((t, i) => ({
+      ...t,
+      order: i,
+      // defaults v3
+      priority: (t.priority ?? "med") as Todo["priority"],
+      labels: Array.isArray(t.labels) ? t.labels : [],
+      subtasks: Array.isArray(t.subtasks) ? t.subtasks : [],
+    }));
+  return ordered;
 }
-
-// Tipi locali
-export type Task = import("../types").Task;

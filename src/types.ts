@@ -1,14 +1,16 @@
 export type Priority = "low" | "med" | "high";
+export type SubTask = { id: string; title: string; done: boolean };
 
-export type Task = {
+export type Todo = {
   id: string;
   title: string;
   completed: boolean;
   createdAt: number;
+  order: number;
 
-  order: number;              
-  priority?: Priority;
-  dueDate?: string;           
-  labels?: string[];
-  notes?: string;
+  // NEW
+  priority?: Priority;     // default "med"
+  dueDate?: string;        // ISO yyyy-mm-dd
+  labels?: string[];       // e.g. ["frontend","bug"]
+  subtasks?: SubTask[];    // checklist
 };

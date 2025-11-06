@@ -5,14 +5,9 @@ import {
   type ChangeEvent, type FormEvent, type MouseEvent,
 } from "react";
 import {
-  Box, TextField, Button, Paper, Stack, Typography,
-  Snackbar, Alert, Divider, IconButton, Checkbox,
-  ButtonGroup, useTheme, Chip,
+  Box, TextField, Button, Stack, Typography,
+  Snackbar, Alert, Divider, ButtonGroup, useTheme, Chip,
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
-import EditIcon from "@mui/icons-material/Edit";
-import CheckIcon from "@mui/icons-material/Check";
-import CloseIcon from "@mui/icons-material/Close";
 import { motion, AnimatePresence } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -32,54 +27,16 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+// Se lo hai installato: import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { SortableTodoItem } from "@/components/SortableTodoItem";
+
+import TaskDetailsDialog from "@/components/TaskDetailsDialog";
+import type { Todo } from "@/types";
+import { loadTodos, saveTodos } from "@/lib/persist";
 
 gsap.registerPlugin(ScrollTrigger);
 
 type Filter = "all" | "active" | "completed";
-type Todo = { id: string; title: string; completed: boolean; createdAt: number; order: number };
-
-const STORAGE_KEY = "next-taskboard/todos";
-const STORAGE_VERSION = 2;
-
-type Stored = { version: number; todos: any[] };
-
-function loadTodos(): Todo[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed: Stored | any[] = JSON.parse(raw);
-
-    // backward-compat: se era un array semplice
-    if (Array.isArray(parsed)) {
-      const normalized = parsed.map((t: any, i: number) => ({ order: i, ...t }));
-      return normalized.map((t, i) => ({ ...t, order: Number.isFinite(t.order) ? t.order : i }))
-                      .sort((a, b) => a.order - b.order)
-                      .map((t, i) => ({ ...t, order: i }));
-    }
-
-    // oggetto versionato
-    if (parsed && parsed.version >= 1) {
-      let items = Array.isArray(parsed.todos) ? parsed.todos : [];
-      // migrazione a v2: garantisci order coerente
-      items = items
-        .map((t: any, i: number) => ({ order: Number.isFinite(t.order) ? t.order : i, ...t }))
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-        .map((t: any, i: number) => ({ ...t, order: i }));
-      return items as Todo[];
-    }
-
-    return [];
-  } catch {
-    return [];
-  }
-}
-
-function saveTodos(todos: Todo[]) {
-  const payload: Stored = { version: STORAGE_VERSION, todos };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-}
 
 export default function ToDoContainer() {
   const theme = useTheme();
@@ -88,8 +45,9 @@ export default function ToDoContainer() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "info" | "warning" | "error" }>({ open: false, message: "", severity: "success" });
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
+
+  // dialog state
+  const [editing, setEditing] = useState<Todo | null>(null);
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const cardsRef = useRef<Record<string, HTMLDivElement | null>>({});
@@ -100,18 +58,11 @@ export default function ToDoContainer() {
     useSensor(KeyboardSensor)
   );
 
-  // boot: carica + migra
-  useEffect(() => {
-    const loaded = loadTodos();
-    setTodos(loaded);
-  }, []);
+  // boot
+  useEffect(() => { setTodos(loadTodos()); }, []);
+  useEffect(() => { saveTodos(todos); }, [todos]);
 
-  // salva ad ogni mutazione
-  useEffect(() => {
-    saveTodos(todos);
-  }, [todos]);
-
-  // animazioni di ingresso
+  // entrance animations
   useLayoutEffect(() => {
     if (!rootRef.current) return;
     const ctx = gsap.context(() => {
@@ -124,7 +75,7 @@ export default function ToDoContainer() {
     return () => ctx.revert();
   }, []);
 
-  // highlight ultimo aggiunto
+  // highlight last by order
   useEffect(() => {
     if (todos.length === 0) return;
     const lastByOrder = [...todos].sort((a, b) => a.order - b.order)[todos.length - 1];
@@ -133,19 +84,22 @@ export default function ToDoContainer() {
     gsap.fromTo(el, { boxShadow: "0 0 0 rgba(0,0,0,0)", scale: 0.98 }, { boxShadow: "0 6px 24px rgba(0,0,0,0.15)", scale: 1, duration: 0.35, ease: "power2.out" });
   }, [todos.length]);
 
+  // form
   function handleChange(e: ChangeEvent<HTMLInputElement>) { setInput(e.target.value); }
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const title = input.trim();
     if (!title) return;
 
-    // inserisci IN CIMA (order 0) e shift degli altri
     const next: Todo = {
       id: crypto.randomUUID(),
       title,
       completed: false,
       createdAt: Date.now(),
       order: 0,
+      priority: "med",
+      labels: [],
+      subtasks: [],
     };
     const reindexed = [next, ...todos.map((t, i) => ({ ...t, order: i + 1 }))];
     setTodos(reindexed);
@@ -160,11 +114,6 @@ export default function ToDoContainer() {
     setSnackbar({ open: true, message: "Task deleted", severity: "info" });
   }
 
-  function handleClearAll() {
-    setTodos([]);
-    setSnackbar({ open: true, message: "All tasks cleared", severity: "warning" });
-  }
-
   function toggleCompleted(id: string) {
     const updated = todos.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t));
     setTodos(updated);
@@ -177,19 +126,12 @@ export default function ToDoContainer() {
     setSnackbar({ open: true, message: "Completed tasks cleared", severity: "info" });
   }
 
-  function startEdit(id: string, current: string) { setEditingId(id); setEditValue(current); }
-  function confirmEdit(id: string) {
-    const v = editValue.trim(); if (!v) return cancelEdit();
-    const updated = todos.map((t) => (t.id === id ? { ...t, title: v } : t));
-    setTodos(updated);
-    setEditingId(null); setEditValue("");
+  function onSaveTask(next: Todo) {
+    setTodos(prev => prev.map(t => t.id === next.id ? next : t));
     setSnackbar({ open: true, message: "Task updated", severity: "success" });
   }
-  function cancelEdit() { setEditingId(null); setEditValue(""); }
-  function pressIn(e: MouseEvent<HTMLButtonElement>) { gsap.to(e.currentTarget, { y: 1, duration: 0.1, ease: "power1.out" }); }
-  function pressOut(e: MouseEvent<HTMLButtonElement>) { gsap.to(e.currentTarget, { y: 0, duration: 0.15, ease: "power2.out" }); }
 
-  // derivati
+  // derived
   const ordered = [...todos].sort((a, b) => a.order - b.order);
   const filteredList =
     filter === "active" ? ordered.filter((t) => !t.completed)
@@ -198,7 +140,6 @@ export default function ToDoContainer() {
 
   const remaining = todos.filter((t) => !t.completed).length;
 
-  // pill attiva: sempre sfondo bianco + testo nero
   const activeFilterSx = {
     bgcolor: theme.palette.common.white + " !important",
     color: theme.palette.common.black + " !important",
@@ -206,15 +147,12 @@ export default function ToDoContainer() {
     "&:hover": { bgcolor: theme.palette.grey[100] + " !important" },
   } as const;
 
-  // DnD: abilito solo su filtro "all" per coerenza d'ordine
   function onDragEnd(e: DragEndEvent) {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
-
     const oldIndex = ordered.findIndex((t) => t.id === active.id);
     const newIndex = ordered.findIndex((t) => t.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
-
     const moved = arrayMove(ordered, oldIndex, newIndex).map((t, i) => ({ ...t, order: i }));
     setTodos(moved);
   }
@@ -228,42 +166,10 @@ export default function ToDoContainer() {
       {/* Form */}
       <Box component="form" onSubmit={handleSubmit} className="jt-form" sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
         <TextField label="New task" value={input} onChange={handleChange} fullWidth autoComplete="off" />
-
-        <Button
-          type="submit"
-          variant="contained"
-          color="primary"
-          disabled={!input.trim()}
-          onMouseDown={pressIn}
-          onMouseUp={pressOut}
-          onMouseLeave={pressOut}
-          sx={{
-            bgcolor: (t) => `${t.palette.primary.main} !important`,
-            color:    (t) => `${t.palette.primary.contrastText} !important`,
-            "&:hover": {
-              bgcolor: (t) =>
-                `${t.palette.mode === "dark" ? t.palette.grey[100] : "#111"} !important`,
-            },
-            "&.Mui-disabled": {
-              bgcolor: (t) =>
-                `${t.palette.mode === "dark" ? t.palette.grey[200] : t.palette.grey[300]} !important`,
-              color: (t) =>
-                `${t.palette.mode === "dark" ? t.palette.grey[700] : t.palette.grey[600]} !important`,
-            },
-          }}
-        >
+        <Button type="submit" variant="contained" color="primary" disabled={!input.trim()}>
           Add
         </Button>
-
-        <Button
-          variant="outlined"
-          color="error"
-          onClick={handleClearAll}
-          disabled={todos.length === 0}
-          onMouseDown={pressIn}
-          onMouseUp={pressOut}
-          onMouseLeave={pressOut}
-        >
+        <Button variant="outlined" color="error" onClick={() => setTodos([])} disabled={todos.length === 0}>
           Clear All
         </Button>
       </Box>
@@ -276,39 +182,18 @@ export default function ToDoContainer() {
 
         <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
           <ButtonGroup size="small" variant="outlined">
-            <Button
-              onClick={() => setFilter("all")}
-              variant={filter === "all" ? "contained" : "outlined"}
-              sx={filter === "all" ? activeFilterSx : undefined}
-              onMouseDown={pressIn}
-              onMouseUp={pressOut}
-              onMouseLeave={pressOut}
-            >
+            <Button onClick={() => setFilter("all")} variant={filter === "all" ? "contained" : "outlined"} sx={filter === "all" ? activeFilterSx : undefined}>
               All
             </Button>
-            <Button
-              onClick={() => setFilter("active")}
-              variant={filter === "active" ? "contained" : "outlined"}
-              sx={filter === "active" ? activeFilterSx : undefined}
-              onMouseDown={pressIn}
-              onMouseUp={pressOut}
-              onMouseLeave={pressOut}
-            >
+            <Button onClick={() => setFilter("active")} variant={filter === "active" ? "contained" : "outlined"} sx={filter === "active" ? activeFilterSx : undefined}>
               Active
             </Button>
-            <Button
-              onClick={() => setFilter("completed")}
-              variant={filter === "completed" ? "contained" : "outlined"}
-              sx={filter === "completed" ? activeFilterSx : undefined}
-              onMouseDown={pressIn}
-              onMouseUp={pressOut}
-              onMouseLeave={pressOut}
-            >
+            <Button onClick={() => setFilter("completed")} variant={filter === "completed" ? "contained" : "outlined"} sx={filter === "completed" ? activeFilterSx : undefined}>
               Completed
             </Button>
           </ButtonGroup>
 
-          <Button size="small" onClick={clearCompleted} disabled={!todos.some((t) => t.completed)} onMouseDown={pressIn} onMouseUp={pressOut} onMouseLeave={pressOut}>
+          <Button size="small" onClick={clearCompleted} disabled={!todos.some((t) => t.completed)}>
             Clear completed
           </Button>
         </Box>
@@ -336,89 +221,41 @@ export default function ToDoContainer() {
 
       {/* Lista */}
       {filter === "all" ? (
-        // DnD abilitato
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          modifiers={[restrictToVerticalAxis]}
-          onDragEnd={onDragEnd}
-        >
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          {/* se hai installato i modifiers:
+              modifiers={[restrictToVerticalAxis]} */}
           <SortableContext items={ordered.map((t) => t.id)} strategy={verticalListSortingStrategy}>
             <Stack spacing={1.25}>
               <AnimatePresence>
-                {ordered.map((todo) => {
-                  const isEditing = editingId === todo.id;
-                  return (
-                    <motion.div key={todo.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.18 }}>
-                      <SortableTodoItem
-                        id={todo.id}
-                        title={todo.title}
-                        completed={todo.completed}
-                        isEditing={isEditing}
-                        setRef={(el) => (cardsRef.current[todo.id] = el)}
-                        onToggleCompleted={() => toggleCompleted(todo.id)}
-                        onStartEdit={() => startEdit(todo.id, todo.title)}
-                        onConfirmEdit={() => confirmEdit(todo.id)}
-                        onCancelEdit={cancelEdit}
-                        onDelete={() => handleDeleteOne(todo.id)}
-                        editValue={editValue}
-                        setEditValue={setEditValue}
-                      />
-                    </motion.div>
-                  );
-                })}
+                {ordered.map((todo) => (
+                  <motion.div key={todo.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.18 }}>
+                    <SortableTodoItem
+                      todo={todo}
+                      setRef={(el) => (cardsRef.current[todo.id] = el)}
+                      onToggleCompleted={() => toggleCompleted(todo.id)}
+                      onEdit={() => setEditing(todo)}
+                      onDelete={() => handleDeleteOne(todo.id)}
+                    />
+                  </motion.div>
+                ))}
               </AnimatePresence>
             </Stack>
           </SortableContext>
         </DndContext>
       ) : (
-        // Statico quando filtrato
         <Stack spacing={1.25}>
           <AnimatePresence>
-            {filteredList.map((todo) => {
-              const isEditing = editingId === todo.id;
-              return (
-                <motion.div key={todo.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.18 }}>
-                  <Paper
-                    elevation={1}
-                    className="jt-card"
-                    ref={(el) => (cardsRef.current[todo.id] = el)}
-                    sx={{
-                      p: 1.25,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 1,
-                      transition: "transform 0.15s ease, box-shadow 0.15s ease",
-                      "&:hover": { transform: "translateY(-2px)" },
-                    }}
-                  >
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}>
-                      <Checkbox checked={todo.completed} onChange={() => toggleCompleted(todo.id)} inputProps={{ "aria-label": `Mark ${todo.title} as completed` }} />
-
-                      {isEditing ? (
-                        <Box component="form" onSubmit={(e) => { e.preventDefault(); confirmEdit(todo.id); }} sx={{ flex: 1, display: "flex", gap: 1 }}>
-                          <TextField autoFocus size="small" value={editValue} onChange={(e) => setEditValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") cancelEdit(); }} fullWidth />
-                          <IconButton aria-label="Confirm" onClick={() => confirmEdit(todo.id)}><CheckIcon /></IconButton>
-                          <IconButton aria-label="Cancel" onClick={cancelEdit}><CloseIcon /></IconButton>
-                        </Box>
-                      ) : (
-                        <Typography onDoubleClick={() => startEdit(todo.id, todo.title)} sx={{ flex: 1, userSelect: "none", textDecoration: todo.completed ? "line-through" : "none", color: todo.completed ? "text.secondary" : "text.primary" }}>
-                          {todo.title}
-                        </Typography>
-                      )}
-                    </Box>
-
-                    {!isEditing && (
-                      <Box sx={{ display: "flex", gap: 0.5 }}>
-                        <IconButton aria-label={`Edit ${todo.title}`} onClick={() => startEdit(todo.id, todo.title)}><EditIcon /></IconButton>
-                        <IconButton aria-label={`Delete ${todo.title}`} onClick={() => handleDeleteOne(todo.id)}><DeleteIcon /></IconButton>
-                      </Box>
-                    )}
-                  </Paper>
-                </motion.div>
-              );
-            })}
+            {filteredList.map((todo) => (
+              <motion.div key={todo.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.18 }}>
+                <SortableTodoItem
+                  todo={todo}
+                  setRef={(el) => (cardsRef.current[todo.id] = el)}
+                  onToggleCompleted={() => toggleCompleted(todo.id)}
+                  onEdit={() => setEditing(todo)}
+                  onDelete={() => handleDeleteOne(todo.id)}
+                />
+              </motion.div>
+            ))}
           </AnimatePresence>
         </Stack>
       )}
@@ -429,6 +266,22 @@ export default function ToDoContainer() {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Dialog edit */}
+      <TaskDetailsDialog
+        open={Boolean(editing)}
+        onClose={() => setEditing(null)}
+        task={editing}
+        onSave={onSaveTask}
+        knownLabels={collectKnownLabels(todos)}
+      />
     </Box>
   );
+}
+
+// helpers
+function collectKnownLabels(list: Todo[]): string[] {
+  const s = new Set<string>();
+  for (const t of list) (t.labels ?? []).forEach(l => s.add(l));
+  return Array.from(s).slice(0, 30);
 }
