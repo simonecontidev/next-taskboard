@@ -1,145 +1,348 @@
+// src/components/TaskDetailsDialog.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import * as React from "react";
 import {
-  Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Button, Stack, Chip, IconButton, Typography, Box, Autocomplete, MenuItem, Select, InputLabel, FormControl, Checkbox as MUICheckbox
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  Stack,
+  Box,
+  IconButton,
+  Checkbox,
+  Typography,
+  Tooltip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  useMediaQuery,
+  Chip,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import type { Todo, SubTask, Priority } from "@/types";
 
 type Props = {
   open: boolean;
-  onClose: () => void;
   task: Todo | null;
+  onClose: () => void;
   onSave: (next: Todo) => void;
-  knownLabels?: string[]; // per suggerimenti
+  onDelete?: (id: string) => void;
+  /** elenco etichette note, sempre array di stringhe */
+  knownLabels?: string[];
 };
 
-const PRIORITIES: Priority[] = ["low", "med", "high"];
+export default function TaskDetailsDialog({
+  open,
+  task,
+  onClose,
+  onSave,
+  onDelete,
+  knownLabels = [],
+}: Props) {
+  const theme = useTheme();
+  const isDownMd = useMediaQuery(theme.breakpoints.down("md"));
+  const isShort = useMediaQuery("(max-height:700px)");
+  const fullScreen = isDownMd || isShort;
 
-export default function TaskDetailsDialog({ open, onClose, task, onSave, knownLabels = [] }: Props) {
-  const [draft, setDraft] = useState<Todo | null>(task);
+  const [draft, setDraft] = React.useState<Todo | null>(null);
+  const [newSubtask, setNewSubtask] = React.useState("");
 
-  // sync quando cambia task
-  useMemo(() => setDraft(task), [task]);
+  React.useEffect(() => {
+    setDraft(task ? { ...task } : null);
+    setNewSubtask("");
+  }, [task, open]);
 
-  if (!draft) return null;
+  const updateField = <K extends keyof Todo>(key: K, value: Todo[K]) => {
+    setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
+  };
 
-  const labelsAll = Array.from(new Set([...(draft.labels ?? []), ...knownLabels])).slice(0, 20);
+  const addSubtask = () => {
+    const t = newSubtask.trim();
+    if (!t) return;
+    const st: SubTask = { id: crypto.randomUUID(), title: t, done: false };
+    setDraft((prev) => (prev ? { ...prev, subtasks: [...(prev.subtasks ?? []), st] } : prev));
+    setNewSubtask("");
+  };
 
-  function addSubtask() {
-    const title = (document.getElementById("new-subtask-input") as HTMLInputElement | null)?.value?.trim();
-    if (!title) return;
-    const st: SubTask = { id: crypto.randomUUID(), title, done: false };
-    const next = { ...draft, subtasks: [...(draft.subtasks ?? []), st] };
-    setDraft(next);
-    (document.getElementById("new-subtask-input") as HTMLInputElement | null)!.value = "";
-  }
+  const toggleSubtask = (id: string, done: boolean) => {
+    setDraft((prev) =>
+      prev
+        ? { ...prev, subtasks: (prev.subtasks ?? []).map((s) => (s.id === id ? { ...s, done } : s)) }
+        : prev
+    );
+  };
 
-  function updateSubtask(id: string, patch: Partial<SubTask>) {
-    const next = {
+  const deleteSubtask = (id: string) => {
+    setDraft((prev) =>
+      prev ? { ...prev, subtasks: (prev.subtasks ?? []).filter((s) => s.id !== id) } : prev
+    );
+  };
+
+  const handleSave = () => {
+    if (!draft) return;
+    const normalized: Todo = {
       ...draft,
-      subtasks: (draft.subtasks ?? []).map(s => s.id === id ? { ...s, ...patch } : s),
+      priority: (draft.priority ?? "med") as Priority,
+      subtasks: draft.subtasks ?? [],
+      labels: draft.labels ?? [],
     };
-    setDraft(next);
-  }
+    onSave(normalized);
+    onClose();
+  };
 
-  function removeSubtask(id: string) {
-    const next = { ...draft, subtasks: (draft.subtasks ?? []).filter(s => s.id !== id) };
-    setDraft(next);
-  }
+  const handleDelete = () => {
+    if (!draft || !onDelete) return;
+    onDelete(draft.id);
+    onClose();
+  };
+
+  const titleHeight = 64;
+  const actionsHeight = 72;
+  const contentMaxH = fullScreen ? `calc(100vh - ${titleHeight + actionsHeight}px)` : "auto";
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Edit task</DialogTitle>
-      <DialogContent dividers>
-        <Stack spacing={2}>
-          <TextField
-            label="Title"
-            value={draft.title}
-            onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-            fullWidth
-          />
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="md"
+      fullScreen={fullScreen}
+      PaperProps={{ sx: { borderRadius: fullScreen ? 0 : 3, overscrollBehavior: "contain" } }}
+    >
+      <DialogTitle
+        sx={{
+          fontWeight: 700,
+          pr: 3,
+          py: 1.75,
+          position: fullScreen ? "sticky" : "static",
+          top: 0,
+          zIndex: 2,
+          bgcolor: "background.paper",
+          borderBottom: (t) => `1px solid ${t.palette.divider}`,
+        }}
+      >
+        {draft ? "Edit task" : "Task details"}
+      </DialogTitle>
 
-          <Stack direction="row" spacing={2}>
-            <FormControl fullWidth>
-              <InputLabel id="priority-label">Priority</InputLabel>
-              <Select
-                labelId="priority-label"
-                label="Priority"
-                value={draft.priority ?? "med"}
-                onChange={(e) => setDraft({ ...draft, priority: e.target.value as Priority })}
-              >
-                {PRIORITIES.map(p => <MenuItem key={p} value={p}>{p.toUpperCase()}</MenuItem>)}
-              </Select>
-            </FormControl>
+      <DialogContent
+        dividers={!fullScreen}
+        sx={{
+          px: { xs: 2, sm: 3 },
+          py: { xs: 2, sm: 3 },
+          maxHeight: contentMaxH,
+          overflowY: "auto",
+          borderBottom: fullScreen ? (t) => `1px solid ${t.palette.divider}` : "none",
+        }}
+      >
+        <Stack direction={{ xs: "column", md: "row" }} spacing={{ xs: 2.5, md: 3 }}>
+          {/* Colonna sinistra */}
+          <Stack flex={1} spacing={2}>
+            <TextField
+              label="Title"
+              value={draft?.title ?? ""}
+              onChange={(e) => updateField("title", e.target.value)}
+              fullWidth
+              size="small"
+              inputProps={{ maxLength: 120 }}
+            />
 
             <TextField
-              label="Due date"
-              type="date"
+              label="Description"
+              value={(draft as any)?.description ?? ""}
+              onChange={(e) =>
+                updateField("description" as keyof Todo, e.target.value as any)
+              }
               fullWidth
-              value={draft.dueDate ?? ""}
-              onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })}
-              InputLabelProps={{ shrink: true }}
+              size="small"
+              multiline
+              minRows={3}
             />
+
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+              <FormControl size="small" fullWidth>
+                <InputLabel id="priority-label">Priority</InputLabel>
+                <Select
+                  labelId="priority-label"
+                  label="Priority"
+                  value={(draft?.priority ?? "med") as Priority}
+                  onChange={(e) => updateField("priority", e.target.value as Priority)}
+                >
+                  <MenuItem value="low">Low</MenuItem>
+                  <MenuItem value="med">Medium</MenuItem>
+                  <MenuItem value="high">High</MenuItem>
+                </Select>
+              </FormControl>
+
+              <TextField
+                label="Due date"
+                type="date"
+                size="small"
+                value={draft?.dueDate ?? ""}
+                onChange={(e) => updateField("dueDate", e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+              />
+            </Stack>
+
+            <TextField
+              label="Labels (comma separated)"
+              size="small"
+              value={(draft?.labels ?? []).join(", ")}
+              onChange={(e) =>
+                updateField(
+                  "labels",
+                  e.target.value
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                )
+              }
+              placeholder="frontend, bug, refactor"
+              fullWidth
+            />
+
+            {/* suggerimenti etichette note */}
+            {knownLabels.length > 0 && (
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {knownLabels.map((lbl) => (
+                  <Chip
+                    key={lbl}
+                    label={lbl}
+                    size="small"
+                    onClick={() => {
+                      const next = new Set([...(draft?.labels ?? [])]);
+                      next.add(lbl);
+                      updateField("labels", Array.from(next));
+                    }}
+                    sx={{ cursor: "pointer" }}
+                  />
+                ))}
+              </Stack>
+            )}
           </Stack>
 
-          <Autocomplete
-            multiple
-            freeSolo
-            options={labelsAll}
-            value={draft.labels ?? []}
-            onChange={(_, value) => setDraft({ ...draft, labels: value })}
-            renderTags={(value: readonly string[], getTagProps) =>
-              value.map((option: string, index: number) => (
-                <Chip variant="outlined" label={option} {...getTagProps({ index })} key={option} />
-              ))
-            }
-            renderInput={(params) => <TextField {...params} label="Labels" placeholder="Add label" />}
-          />
+          {/* Colonna destra */}
+          <Stack flex={1} spacing={2}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              Subtasks
+            </Typography>
 
-          <Box>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>Checklist</Typography>
-            <Stack spacing={1}>
-              {(draft.subtasks ?? []).map((s) => (
-                <Stack key={s.id} direction="row" alignItems="center" spacing={1}>
-                  <MUICheckbox checked={s.done} onChange={() => updateSubtask(s.id, { done: !s.done })} />
-                  <TextField
-                    size="small"
-                    value={s.title}
-                    onChange={(e) => updateSubtask(s.id, { title: e.target.value })}
-                    fullWidth
-                  />
-                  <IconButton onClick={() => removeSubtask(s.id)} aria-label="Delete subtask"><DeleteIcon /></IconButton>
-                </Stack>
-              ))}
-              <Stack direction="row" spacing={1}>
-                <TextField id="new-subtask-input" size="small" placeholder="New subtask…" fullWidth />
-                <Button startIcon={<AddIcon />} onClick={addSubtask} variant="outlined">Add</Button>
-              </Stack>
+            <Stack direction="row" spacing={1}>
+              <TextField
+                id="new-subtask-input"
+                size="small"
+                fullWidth
+                placeholder="Add a subtask"
+                value={newSubtask}
+                onChange={(e) => setNewSubtask(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") addSubtask();
+                }}
+              />
+              <Tooltip title="Add subtask">
+                <IconButton color="primary" onClick={addSubtask} aria-label="add-subtask" sx={{ flexShrink: 0 }}>
+                  <AddIcon />
+                </IconButton>
+              </Tooltip>
             </Stack>
-          </Box>
 
-          <Stack direction="row" spacing={1} alignItems="center">
-            <MUICheckbox
-              checked={draft.completed}
-              onChange={() => setDraft({ ...draft, completed: !draft.completed })}
-            />
-            <Typography>Mark as completed</Typography>
+            <Stack
+              spacing={1.25}
+              sx={{
+                maxHeight: { xs: 280, sm: 320, md: 360 },
+                overflowY: "auto",
+                pr: 0.5,
+              }}
+            >
+              {(draft?.subtasks ?? []).length === 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  No subtasks yet.
+                </Typography>
+              )}
+
+              {(draft?.subtasks ?? []).map((s) => (
+                <Box
+                  key={s.id}
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "auto 1fr auto",
+                    alignItems: "center",
+                    gap: 1,
+                    p: 1,
+                    borderRadius: 1.5,
+                    border: "1px solid",
+                    borderColor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(255,255,255,0.12)"
+                        : "rgba(0,0,0,0.12)",
+                  }}
+                >
+                  <Checkbox
+                    checked={s.done}
+                    onChange={(e) => toggleSubtask(s.id, e.target.checked)}
+                    inputProps={{ "aria-label": "toggle-subtask" }}
+                    sx={{ mr: 0.5 }}
+                  />
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      textDecoration: s.done ? "line-through" : "none",
+                      color: s.done ? "text.secondary" : "text.primary",
+                      pr: 1,
+                    }}
+                  >
+                    {s.title}
+                  </Typography>
+                  <Tooltip title="Delete subtask">
+                    <IconButton size="small" onClick={() => deleteSubtask(s.id)} aria-label="delete-subtask">
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              ))}
+            </Stack>
           </Stack>
         </Stack>
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button
-          onClick={() => { onSave({ ...draft, title: draft.title.trim() || draft.title }); onClose(); }}
-          variant="contained"
-        >
-          Save
-        </Button>
+      <DialogActions
+        sx={{
+          gap: 1,
+          flexWrap: "wrap",
+          justifyContent: "space-between",
+          px: { xs: 2, sm: 3 },
+          py: { xs: 1.25, sm: 1.75 },
+          position: fullScreen ? "sticky" : "static",
+          bottom: 0,
+          zIndex: 2,
+          bgcolor: "background.paper",
+          borderTop: fullScreen ? (t) => `1px solid ${t.palette.divider}` : "none",
+        }}
+      >
+        <Box>
+          {onDelete && draft && (
+            <Tooltip title="Delete task">
+              <Button color="error" variant="outlined" onClick={handleDelete} startIcon={<DeleteIcon />} size="small">
+                Delete
+              </Button>
+            </Tooltip>
+          )}
+        </Box>
+
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Button variant="text" onClick={onClose} size="small">
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleSave} disabled={!draft || !(draft.title?.trim())} size="small">
+            Save
+          </Button>
+        </Box>
       </DialogActions>
     </Dialog>
   );

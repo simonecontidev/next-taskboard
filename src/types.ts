@@ -14,3 +14,6 @@ export type Todo = {
   labels?: string[];       // e.g. ["frontend","bug"]
   subtasks?: SubTask[];    // checklist
 };
+
+// ✅ aggiungi questa riga
+export type Task = Todo;

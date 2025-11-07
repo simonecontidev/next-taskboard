@@ -1,3 +1,4 @@
+// src/components/ToDoContainer.tsx
 "use client";
 
 import {
@@ -21,7 +22,6 @@ import { SortableTodoItem } from "@/components/SortableTodoItem";
 import TaskDetailsDialog from "@/components/TaskDetailsDialog";
 import type { Todo, Priority } from "@/types";
 import { loadTodos, saveTodos } from "@/lib/persist";
-import { Fullscreen } from "@mui/icons-material";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -147,8 +147,8 @@ export default function ToDoContainer() {
   const ordered = [...todos].sort((a, b) => a.order - b.order);
   const remaining = todos.filter((t) => !t.completed).length;
 
-  // known labels for menus/filters
-  const knownLabels = collectKnownLabels(todos);
+  // known labels: **sempre** array di stringhe
+  const knownLabels: string[] = collectKnownLabels(todos);
 
   // filtering helpers
   function matchesPriority(t: Todo) {
@@ -158,8 +158,7 @@ export default function ToDoContainer() {
   function matchesLabels(t: Todo) {
     if (!labelFilter.length) return true;
     const labels = new Set(t.labels ?? []);
-    // match ANY selected label
-    return labelFilter.some(l => labels.has(l));
+    return labelFilter.some(l => labels.has(l)); // match ANY
   }
   function matchesDue(t: Todo) {
     if (dueFilter === "all") return true;
@@ -191,7 +190,6 @@ export default function ToDoContainer() {
     setTodos(moved);
   }
 
-  // 🔧 pill attiva theme-aware (niente bianco/nero fissi)
   const activeFilterSx = {
     bgcolor: theme.palette.background.paper,
     color: theme.palette.text.primary,
@@ -200,133 +198,134 @@ export default function ToDoContainer() {
   } as const;
 
   return (
-    <Box ref={rootRef} sx={{  mx: "auto", p: 3, minHeight: "100vh", bgcolor: (t) => t.palette.background.default,
-    color: (t) => t.palette.text.primary  }}>
-      <Box sx={{ width: 1000, mx: "auto"}}>
-      <Typography className="jt-title" variant="h2" sx={{ mb: 4, fontWeight: 600, textAlign: "center", mt: 2 }}>
-        Next Taskboard
-      </Typography>
-
-      {/* Form */}
-      <Box component="form" onSubmit={handleSubmit} className="jt-form" sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-        <TextField label="New task" value={input} onChange={(e: ChangeEvent<HTMLInputElement>) => setInput(e.target.value)} fullWidth autoComplete="off" />
-        <Button type="submit" variant="contained" color="primary" disabled={!input.trim()}>
-          Add
-        </Button>
-        <Button variant="outlined" color="error" onClick={() => setTodos([])} disabled={todos.length === 0}>
-          Clear All
-        </Button>
-      </Box>
-
-      {/* Counter + Filtri base */}
-      <Box sx={{ mt: 1.5, display: "flex", gap: 2, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
-        <Typography variant="subtitle2" color="text.secondary">
-          {todos.length === 0 ? "No tasks yet" : `${remaining} remaining • ${todos.length} total`}
+    <Box ref={rootRef} sx={{ mx: "auto", p: 3, minHeight: "100vh", bgcolor: (t) => t.palette.background.default, color: (t) => t.palette.text.primary }}>
+      <Box sx={{ width: { xs: "100%", sm: "100%", md: 980 }, mx: "auto" }}>
+        <Typography className="jt-title" variant="h2" sx={{ mb: 4, fontWeight: 600, textAlign: "center", mt: 2 }}>
+          Next Taskboard
         </Typography>
 
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
-          <ButtonGroup size="small" variant="outlined">
-            <Button onClick={() => setFilter("all")} variant={filter === "all" ? "contained" : "outlined"} sx={filter === "all" ? activeFilterSx : undefined}>
-              All
-            </Button>
-            <Button onClick={() => setFilter("active")} variant={filter === "active" ? "contained" : "outlined"} sx={filter === "active" ? activeFilterSx : undefined}>
-              Active
-            </Button>
-            <Button onClick={() => setFilter("completed")} variant={filter === "completed" ? "contained" : "outlined"} sx={filter === "completed" ? activeFilterSx : undefined}>
-              Completed
-            </Button>
+        {/* Form */}
+        <Box component="form" onSubmit={handleSubmit} className="jt-form" sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+          <TextField label="New task" value={input} onChange={(e: ChangeEvent<HTMLInputElement>) => setInput(e.target.value)} fullWidth autoComplete="off" />
+          <Button type="submit" variant="contained" color="primary" disabled={!input.trim()}>
+            Add
+          </Button>
+          <Button variant="outlined" color="error" onClick={() => setTodos([])} disabled={todos.length === 0}>
+            Clear All
+          </Button>
+        </Box>
+
+        {/* Counter + Filtri base */}
+        <Box sx={{ mt: 1.5, display: "flex", gap: 2, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+          <Typography variant="subtitle2" color="text.secondary">
+            {todos.length === 0 ? "No tasks yet" : `${remaining} remaining • ${todos.length} total`}
+          </Typography>
+
+          <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+            <ButtonGroup size="small" variant="outlined">
+              <Button onClick={() => setFilter("all")} variant={filter === "all" ? "contained" : "outlined"} sx={filter === "all" ? activeFilterSx : undefined}>
+                All
+              </Button>
+              <Button onClick={() => setFilter("active")} variant={filter === "active" ? "contained" : "outlined"} sx={filter === "active" ? activeFilterSx : undefined}>
+                Active
+              </Button>
+              <Button onClick={() => setFilter("completed")} variant={filter === "completed" ? "contained" : "outlined"} sx={filter === "completed" ? activeFilterSx : undefined}>
+                Completed
+              </Button>
+            </ButtonGroup>
+          </Box>
+        </Box>
+
+        {/* Filtri avanzati */}
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems="center" sx={{ mt: 1 }}>
+          <Autocomplete
+            multiple
+            options={["low","med","high"] as Priority[]}
+            value={priorityFilter}
+            onChange={(_, v) => setPriorityFilter(v)}
+            renderInput={(params) => <TextField {...params} size="small" label="Priority filter" placeholder="Select priorities" />}
+            sx={{ minWidth: 220, flex: 1 }}
+          />
+          <Autocomplete
+            multiple
+            freeSolo
+            // ✅ sempre un array di stringhe
+            options={knownLabels}
+            value={labelFilter}
+            onChange={(_, v) => setLabelFilter(v)}
+            renderInput={(params) => <TextField {...params} size="small" label="Label filter" placeholder="Select labels" />}
+            sx={{ minWidth: 260, flex: 2 }}
+          />
+          <ButtonGroup size="small" variant="outlined" sx={{ flexWrap: "wrap" }}>
+            {(["all","overdue","today","upcoming","no-due"] as DueFilter[]).map(df => (
+              <Button key={df} onClick={() => setDueFilter(df)} variant={dueFilter === df ? "contained" : "outlined"} sx={dueFilter === df ? activeFilterSx : undefined}>
+                {df.toUpperCase()}
+              </Button>
+            ))}
           </ButtonGroup>
+        </Stack>
+
+        {/* Hint DnD */}
+        <Box sx={{ mt: 1 }}>
+          <Chip
+            label={filter === "all" ? "Drag & drop enabled (All)" : "Reorder available only in All"}
+            size="small"
+            color={filter === "all" ? "primary" : "default"}
+            variant={filter === "all" ? "filled" : "outlined"}
+          />
         </Box>
-      </Box>
 
-      {/* Filtri avanzati */}
-      <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems="center" sx={{ mt: 1 }}>
-        <Autocomplete
-          multiple
-          options={["low","med","high"] as Priority[]}
-          value={priorityFilter}
-          onChange={(_, v) => setPriorityFilter(v)}
-          renderInput={(params) => <TextField {...params} size="small" label="Priority filter" placeholder="Select priorities" />}
-          sx={{ minWidth: 220, flex: 1 }}
+        <Divider sx={{ my: 2 }} />
+
+        {/* Empty state */}
+        {todos.length === 0 && (
+          <Box sx={{ textAlign: "center", mt: 6, color: "text.secondary", opacity: 0.9 }}>
+            <Typography variant="h6" sx={{ fontWeight: 500 }}>Your mind is clear.</Typography>
+            <Typography variant="body2">Add your first thought 🌱</Typography>
+          </Box>
+        )}
+
+        {/* Lista */}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <SortableContext items={filteredList.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+            <Stack spacing={1.25}>
+              <AnimatePresence>
+                {filteredList.map((todo) => (
+                  <motion.div key={todo.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.18 }}>
+                    <SortableTodoItem
+                      todo={todo}
+                      knownLabels={knownLabels}
+                      setRef={(el) => (cardsRef.current[todo.id] = el)}
+                      onToggleCompleted={() => toggleCompleted(todo.id)}
+                      onEdit={() => setEditing(todo)}
+                      onDelete={() => handleDeleteOne(todo.id)}
+                      onCyclePriority={() => cyclePriority(todo.id)}
+                      onSetDue={(iso) => setDue(todo.id, iso)}
+                      onToggleLabel={(label) => toggleLabel(todo.id, label)}
+                    />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </Stack>
+          </SortableContext>
+        </DndContext>
+
+        {/* Snackbar */}
+        <Snackbar open={snackbar.open} autoHideDuration={1800} onClose={() => setSnackbar((s) => ({ ...s, open: false }))} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+          <Alert onClose={() => setSnackbar((s) => ({ ...s, open: false }))} severity={snackbar.severity} variant="filled" sx={{ width: "100%" }}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+
+        {/* Dialog edit */}
+        <TaskDetailsDialog
+          open={Boolean(editing)}
+          onClose={() => setEditing(null)}
+          task={editing}
+          onSave={(next) => onSaveTask(next)}
+          // ✅ garantito array
+          knownLabels={knownLabels}
         />
-        <Autocomplete
-          multiple
-          freeSolo
-          options={knownLabels}
-          value={labelFilter}
-          onChange={(_, v) => setLabelFilter(v)}
-          renderInput={(params) => <TextField {...params} size="small" label="Label filter" placeholder="Select labels" />}
-          sx={{ minWidth: 260, flex: 2 }}
-        />
-        <ButtonGroup size="small" variant="outlined" sx={{ flexWrap: "wrap" }}>
-          {(["all","overdue","today","upcoming","no-due"] as DueFilter[]).map(df => (
-            <Button key={df} onClick={() => setDueFilter(df)} variant={dueFilter === df ? "contained" : "outlined"} sx={dueFilter === df ? activeFilterSx : undefined}>
-              {df.toUpperCase()}
-            </Button>
-          ))}
-        </ButtonGroup>
-      </Stack>
-
-      {/* Hint DnD */}
-      <Box sx={{ mt: 1 }}>
-        <Chip
-          label={filter === "all" ? "Drag & drop enabled (All)" : "Reorder available only in All"}
-          size="small"
-          color={filter === "all" ? "primary" : "default"}
-          variant={filter === "all" ? "filled" : "outlined"}
-        />
-      </Box>
-
-      <Divider sx={{ my: 2 }} />
-
-      {/* Empty state */}
-      {todos.length === 0 && (
-        <Box sx={{ textAlign: "center", mt: 6, color: "text.secondary", opacity: 0.9 }}>
-          <Typography variant="h6" sx={{ fontWeight: 500 }}>Your mind is clear.</Typography>
-          <Typography variant="body2">Add your first thought 🌱</Typography>
-        </Box>
-      )}
-
-      {/* Lista */}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <SortableContext items={filteredList.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-          <Stack spacing={1.25}>
-            <AnimatePresence>
-              {filteredList.map((todo) => (
-                <motion.div key={todo.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.18 }}>
-                  <SortableTodoItem
-                    todo={todo}
-                    knownLabels={knownLabels}
-                    setRef={(el) => (cardsRef.current[todo.id] = el)}
-                    onToggleCompleted={() => toggleCompleted(todo.id)}
-                    onEdit={() => setEditing(todo)}
-                    onDelete={() => handleDeleteOne(todo.id)}
-                    onCyclePriority={() => cyclePriority(todo.id)}
-                    onSetDue={(iso) => setDue(todo.id, iso)}
-                    onToggleLabel={(label) => toggleLabel(todo.id, label)}
-                  />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </Stack>
-        </SortableContext>
-      </DndContext>
-
-      {/* Snackbar */}
-      <Snackbar open={snackbar.open} autoHideDuration={1800} onClose={() => setSnackbar((s) => ({ ...s, open: false }))} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
-        <Alert onClose={() => setSnackbar((s) => ({ ...s, open: false }))} severity={snackbar.severity} variant="filled" sx={{ width: "100%" }}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-
-      {/* Dialog edit */}
-      <TaskDetailsDialog
-        open={Boolean(editing)}
-        onClose={() => setEditing(null)}
-        task={editing}
-        onSave={(next) => onSaveTask(next)}
-        knownLabels={knownLabels}
-      />
       </Box>
     </Box>
   );
