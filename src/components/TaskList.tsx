@@ -18,8 +18,7 @@ import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { Task } from "@/types";
 import { SortableTask } from "./SortableTask";
 import { useEffect, useMemo } from "react";
-import { saveTasks } from "@/lib/persist";
-
+import { saveTodos as saveTasks } from "@/lib/persist";
 type Props = {
   tasks: Task[];
   setTasks: (next: Task[]) => void;
