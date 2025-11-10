@@ -13,6 +13,14 @@
 A sleek, animated **Next.js 15** task board built with **TypeScript**, **MUI v6**, **Framer Motion**, **GSAP**, and **DnD-Kit**.  
 Designed as a real-world demo to showcase advanced React patterns, UI/UX micro-interactions, and clean architectural thinking.
 
+Taskboard is a lightweight productivity app inspired by Trello, built to manage tasks through smooth, physics-based drag-and-drop interactions.
+It uses dnd-kit for performant, accessible motion and Zustand for global state with local persistence — allowing instant reordering and offline continuity.
+Each task and column is modular, editable, and reactive: updates sync in real time without page reloads or layout shifts.
+Designed with a minimal UI and tactile micro-interactions, Taskboard focuses on usability, responsiveness, and developer clarity through a fully componentized React structure.
+
+[Live Demo](https://taskflow.simoneconti.work/) 
+
+
 > 🧑‍💻 Built by [Simone Conti](https://simoneconti.work) — creative developer blending code and design.
 
 ---
